@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>AlsoEnergyCoding Challenge 3</title>
+		<link rel="stylesheet" href="style.css">
+	</head>
+	<body> 
+		<div id="container">
+			<canvas id="canvas_main" width="1200" height="1000"></canvas>
+			<button onclick="generate()" type="button">Generate</button>
+		</div>    
+		<script type="text/javascript">
+
+			//Define Initial Variables
+
+			var startingRabbits = 3;
+			var startingHeight = 50;
+			var startingWidth = 35;
+			var maxDistance = 100;
+			var maximum = 5;
+			var minimum = 0;
+			var curGen = 0;
+			var id = 0;
+			var rabbits = [];
+
+			//Define Canvas Properties
+
+			var canvas = document.getElementById('canvas_main');
+			var ctx = canvas.getContext("2d");
+			ctx.fillStyle="red";
+			ctx.strokeStyle = "white";
+			var canvasWidth = canvas.width;
+			var canvasHeight = canvas.height;
+
+			//Define Selections
+
+			var selected;
+			var selectedParent;
+			var selectedChildren = [];
+
+
+			//Events
+
+			document.getElementById('canvas_main').onclick = function()
+			{
+				var evt = window.event || arguments.callee.caller.arguments[0];
+				var rect = canvas.getBoundingClientRect();
+			    var source = {
+			      x: evt.clientX - rect.left,
+			      y: evt.clientY - rect.top
+			    };
+			    highlight(source);
+			};
+
+			//Spawn Initial 'rabbits'
+
+			(function() {
+
+				//Create as many rabbits as initially desired
+				for(var i = 0; i < startingRabbits; i++)
+				{
+					var rabbit = {
+						rid : id,
+						pid : -1,
+						genId : curGen,
+						h : startingHeight,
+						w : startingWidth,
+						x : 0,
+						y : 0
+					}
+
+					drawRabbit(rabbit);
+				}
+
+			})();
+
+			//Generate more 'rabbits'
+
+			function generate()
+			{
+				var parents = rabbits.filter(function( obj ) {
+				  return obj.genId == curGen;
+				});
+
+				curGen++;
+
+				for (var i = 0; i < parents.length; i++)
+				{
+					var numToGen = Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
+
+					for(var l = 0; l < numToGen; l++)
+					{
+						var height = parents[i].h * .75;
+						var width = parents[i].w * .75;
+						var rabbit = {
+							rid : id,
+							pid : parents[i].rid,
+							genId : curGen,
+							h : height,
+							w : width,
+							x : 0,
+							y : 0
+						}
+
+						drawRabbit(rabbit, parents[i]);
+					}
+				}
+			}
+
+			//Pick position and draw the 'rabbit'
+
+			function drawRabbit(rabbit, parent)
+			{
+				do
+				{
+					rabbit = getPosition(rabbit);
+
+				} while (testColliding(rabbit, parent))
+				
+				ctx.fillRect(rabbit.x, rabbit.y, rabbit.w, rabbit.h);
+
+				id++;
+
+				rabbits.push(rabbit);
+			}
+
+			//Picks a position from within the canvas
+
+			function getPosition(rabbit)
+			{
+				rabbit.x = Math.floor(Math.random() * ((canvasWidth - (rabbit.w)) - ((rabbit.w / 2) + 1))) + (rabbit.w / 2);
+				rabbit.y = Math.floor(Math.random() * ((canvasHeight - (rabbit.h)) - ((rabbit.h / 2) + 1))) + (rabbit.h / 2);
+
+				return rabbit;
+			}
+
+			//Tests if the provided position collides with any existing rabbits
+
+			function testColliding(rabbit, parent)
+			{
+				for (var i = 0; i < rabbits.length; i++)
+				{
+					if (rabbit.x < rabbits[i].x + rabbits[i].w &&
+   						rabbit.x + rabbit.w > rabbits[i].x &&
+   						rabbit.y < rabbits[i].y + rabbits[i].h &&
+   						rabbit.h + rabbit.y > rabbits[i].y) {
+    					return true;
+					}
+					
+		    	}
+
+		    	//If the rabbit has a parent, ensures it does not spawn too far from it
+
+		    	if(typeof(parent) !== 'undefined')
+		    	{
+		    		if (Math.abs(parent.x - rabbit.x) > maxDistance || Math.abs(parent.y - rabbit.y) > maxDistance)
+		    		{
+		    			return true;
+		    		}
+		    	}
+
+		    	return false;
+			}
+			
+			//Selects and highlights parent and child rabbits
+
+			function highlight(source)
+			{
+				resetPreviousSelection();
+
+				for(var i = 0; i < rabbits.length; i++)
+				{
+					if (source.x < rabbits[i].x + rabbits[i].w &&
+						source.x > rabbits[i].x &&
+						source.y < rabbits[i].y + rabbits[i].h &&
+						source.y > rabbits[i].y)
+					{
+						ctx.strokeRect(rabbits[i].x, rabbits[i].y, rabbits[i].w, rabbits[i].h);
+						selected = rabbits[i];
+
+						if (selected.pid > -1)
+						{
+							var parent = rabbits.filter(function( obj ) {
+							  return obj.rid == selected.pid;
+							});
+
+							ctx.fillStyle = "blue";
+							ctx.fillRect(parent[0].x, parent[0].y, parent[0].w, parent[0].h);
+							selectedParent = parent[0];
+						}
+
+						var children = rabbits.filter(function( obj ) {
+							  return obj.pid == selected.rid;
+							});
+
+						if (children.length > 0)
+						{
+							ctx.fillStyle = "yellow";
+							for(var l = 0; l < children.length; l++)
+							{
+								ctx.fillRect(children[l].x, children[l].y, children[l].w, children[l].h);
+							}
+							selectedChildren = children;
+						}
+
+					}
+				}
+
+				ctx.fillStyle = "red";
+			}
+
+			//Resets previous parent and child selections
+
+			function resetPreviousSelection()
+			{
+				ctx.fillStyle = "red";
+				if (typeof(selected) !== 'undefined')
+				{
+					ctx.clearRect(selected.x - 1, selected.y - 1, selected.w + 2, selected.h + 2);
+					ctx.fillRect(selected.x, selected.y, selected.w, selected.h);
+				}
+
+				if (typeof(selectedParent) !== 'undefined')
+				{
+					ctx.fillRect(selectedParent.x, selectedParent.y, selectedParent.w, selectedParent.h);
+				}
+
+				for (var i = 0; i < selectedChildren.length; i++)
+				{
+					ctx.fillRect(selectedChildren[i].x, selectedChildren[i].y, selectedChildren[i].w, selectedChildren[i].h)
+				}
+			}
+
+		</script>
+	</body>
+</html>
